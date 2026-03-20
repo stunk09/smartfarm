@@ -1,0 +1,103 @@
+-- ==============================================================================
+-- SCRIPT DE CRIAÇÃO DO BANCO DE DADOS (TIPAGEM FIEL AO DIAGRAMA UML)
+-- ==============================================================================
+
+-- 1. Criação da tabela usuario
+CREATE TABLE usuario (
+    id_usuario SERIAL PRIMARY KEY,
+    nome VARCHAR,
+    apelido VARCHAR,
+    email VARCHAR UNIQUE
+);
+
+-- 2. Criação da tabela planta (Com suporte a vasos acoplados)
+CREATE TABLE planta (
+    id_planta SERIAL PRIMARY KEY,
+    nome VARCHAR,
+    especificacao VARCHAR,
+    tamanho_max FLOAT, 
+    freq_regargem VARCHAR,
+    id_usuario_fk INTEGER NOT NULL, 
+    id_planta_principal_fk INTEGER,
+    CONSTRAINT fk_planta_usuario FOREIGN KEY (id_usuario_fk) REFERENCES usuario(id_usuario),
+    CONSTRAINT fk_planta_acoplada FOREIGN KEY (id_planta_principal_fk) REFERENCES planta(id_planta)
+);
+
+-- 3. Criação da tabela arduino_esp32 
+CREATE TABLE arduino_esp32 (
+    id_arduino SERIAL PRIMARY KEY,
+    nome VARCHAR,
+    status_conexao BOOLEAN,
+    id_planta_fk INTEGER, 
+    CONSTRAINT fk_arduino_planta FOREIGN KEY (id_planta_fk) REFERENCES planta(id_planta)
+);
+
+-- 4. Criação da tabela servidor 
+CREATE TABLE servidor (
+    id_servidor SERIAL PRIMARY KEY,
+    id_arduino_fk INTEGER,
+    CONSTRAINT fk_servidor_arduino FOREIGN KEY (id_arduino_fk) REFERENCES arduino_esp32(id_arduino)
+);
+
+-- 5. Criação da tabela app 
+CREATE TABLE app (
+    id_app SERIAL PRIMARY KEY,
+    notific_mudanca_estado VARCHAR,
+    notific_baixo_reserv VARCHAR,
+    id_usuario_fk INTEGER,  
+    id_servidor_fk INTEGER, 
+    CONSTRAINT fk_app_usuario FOREIGN KEY (id_usuario_fk) REFERENCES usuario(id_usuario),
+    CONSTRAINT fk_app_servidor FOREIGN KEY (id_servidor_fk) REFERENCES servidor(id_servidor)
+);
+
+-- 6. Criação da tabela camera 
+CREATE TABLE camera (
+    id_camera SERIAL PRIMARY KEY,
+    tipo VARCHAR,       
+    resolucao VARCHAR,  
+    status VARCHAR,      
+    id_arduino_fk INTEGER, 
+    CONSTRAINT fk_camera_arduino FOREIGN KEY (id_arduino_fk) REFERENCES arduino_esp32(id_arduino)
+);
+
+-- 7. Criação da tabela bomba 
+CREATE TABLE bomba (
+    id_bomba SERIAL PRIMARY KEY,
+    capacidade VARCHAR,   
+    status VARCHAR,       
+    ultima_ativacao TIMESTAMP,
+    id_arduino_fk INTEGER, 
+    CONSTRAINT fk_bomba_arduino FOREIGN KEY (id_arduino_fk) REFERENCES arduino_esp32(id_arduino)
+);
+
+-- 8. Criação da tabela imagem 
+CREATE TABLE imagem (
+    id_imagem SERIAL PRIMARY KEY,
+    caminho_arquivo VARCHAR,
+    data_captura TIMESTAMP,
+    tamanho VARCHAR, 
+    id_camera_fk INTEGER, 
+    CONSTRAINT fk_imagem_camera FOREIGN KEY (id_camera_fk) REFERENCES camera(id_camera)
+);
+
+-- 9. Criação da tabela sensores 
+CREATE TABLE sensores (
+    id_sensor SERIAL PRIMARY KEY,
+    valor FLOAT, 
+    unidade_medida VARCHAR, 
+    localizacao VARCHAR,    
+    id_arduino_fk INTEGER, 
+    CONSTRAINT fk_sensores_arduino FOREIGN KEY (id_arduino_fk) REFERENCES arduino_esp32(id_arduino)
+);
+
+-- 10. Criação da tabela display 
+CREATE TABLE display (
+    id_display SERIAL PRIMARY KEY,
+    tipo_display VARCHAR,      
+    tamanho VARCHAR,           
+    resolucao_pixels VARCHAR,  
+    brilho_atual VARCHAR,      
+    status_conexao VARCHAR,    
+    id_arduino_fk INTEGER,  
+    CONSTRAINT fk_display_arduino FOREIGN KEY (id_arduino_fk) REFERENCES arduino_esp32(id_arduino)
+);
