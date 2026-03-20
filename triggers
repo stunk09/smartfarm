@@ -1,0 +1,78 @@
+CREATE OR REPLACE FUNCTION registrar_hora_bomba()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Se a bomba mudou de qualquer status para 'ligada'
+    IF NEW.status = 'ligada' AND OLD.status IS DISTINCT FROM 'ligada' THEN
+        NEW.ultima_ativacao = CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER gatilho_ativacao_bomba
+BEFORE UPDATE ON bomba
+FOR EACH ROW
+EXECUTE FUNCTION registrar_hora_bomba();
+
+
+
+------------------------------------------------------------------------------------------------------------
+
+
+CREATE OR REPLACE FUNCTION preencher_data_imagem()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Se a data de captura vier vazia no momento de inserir (INSERT)
+    IF NEW.data_captura IS NULL THEN
+        NEW.data_captura = CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER gatilho_data_imagem
+BEFORE INSERT ON imagem
+FOR EACH ROW
+EXECUTE FUNCTION preencher_data_imagem();
+
+------------------------------------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION arduino_offline_cascata()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Se o Arduino acabou de ficar offline
+    IF NEW.status_conexao = false AND OLD.status_conexao = true THEN
+        -- Atualiza todos os equipamentos ligados a este Arduino
+        UPDATE camera SET status = 'inativo' WHERE id_arduino_fk = NEW.id_arduino;
+        UPDATE bomba SET status = 'desligada' WHERE id_arduino_fk = NEW.id_arduino;
+        UPDATE display SET status_conexao = 'Erro de Comunicação' WHERE id_arduino_fk = NEW.id_arduino;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER gatilho_arduino_offline
+AFTER UPDATE ON arduino_esp32
+FOR EACH ROW
+EXECUTE FUNCTION arduino_offline_cascata();
+
+
+------------------------------------------------------------------------------------------------------------
+
+
+
+CREATE OR REPLACE FUNCTION travar_auto_acoplamento()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Verifica se o ID do vaso principal é igual ao ID do próprio vaso
+    IF NEW.id_planta = NEW.id_planta_principal_fk THEN
+        RAISE EXCEPTION 'Erro: Um vaso não pode ser acoplado a ele mesmo!';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER gatilho_trava_acoplamento
+BEFORE INSERT OR UPDATE ON planta
+FOR EACH ROW
+EXECUTE FUNCTION travar_auto_acoplamento();
